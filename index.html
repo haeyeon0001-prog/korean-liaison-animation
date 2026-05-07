@@ -245,16 +245,16 @@
   .syl.flying.compound-jong[data-layout="h-has-jong"] .ch.coral { clip-path: polygon(48% 64%, 100% 64%, 100% 100%, 48% 100%); }
   .syl.flying.compound-jong .ch.coral.pico { transform-origin: 74% 80%; }
 
-  /* While the compound source is sparkling, also hide the LEFT half of the
-     patchim region in the source's base layer (where ㄹ etc. lives). That
-     way the user only sees the moving consonant (ㄱ in coral), not the
-     staying one. The ㄹ reappears naturally once the source character is
-     swapped to its post-move form (e.g. 읽 → 일). */
+  /* While the compound source is sparkling, hide the ENTIRE patchim region
+     of the source's base layer. The flying coral overlay still shows ㄱ
+     (right half of patchim), so the user only sees the moving consonant.
+     The ㄹ (or other staying consonant) reappears naturally once the source
+     character is swapped to its post-move form (e.g. 읽 → 일). */
   .syl.compound-sparkling[data-layout="v-has-jong"] .ch.base {
-    clip-path: polygon(0 0, 100% 0, 100% 100%, 48% 100%, 48% 60%, 0 60%);
+    clip-path: polygon(0 0, 100% 0, 100% 56%, 0 56%);
   }
   .syl.compound-sparkling[data-layout="h-has-jong"] .ch.base {
-    clip-path: polygon(0 0, 100% 0, 100% 100%, 48% 100%, 48% 64%, 0 64%);
+    clip-path: polygon(0 0, 100% 0, 100% 60%, 0 60%);
   }
 
   /* Sparkle (キラキラ) — pure scale-pulse, no filter shadows.
