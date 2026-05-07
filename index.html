@@ -521,6 +521,8 @@ const EXAMPLES = [
   { word: "책이",  syllables: ["책","이"],     meaning: "本が",     moves: [{ from:0, to:1, jamo:"ㄱ", afterFrom:"채", afterTo:"기" }], result: "채기" },
   { word: "음악",  syllables: ["음","악"],     meaning: "音楽",     moves: [{ from:0, to:1, jamo:"ㅁ", afterFrom:"으", afterTo:"막" }], result: "으막" },
   { word: "한국어", syllables: ["한","국","어"], meaning: "韓国語",   moves: [{ from:1, to:2, jamo:"ㄱ", afterFrom:"구", afterTo:"거" }], result: "한구거" },
+  // 읽어 — compound patchim (ㄺ) splits: ㄹ stays, ㄱ moves to the next syllable
+  { word: "읽어",  syllables: ["읽","어"],     meaning: "読んで",   moves: [{ from:0, to:1, jamo:"ㄱ", afterFrom:"일", afterTo:"거" }], result: "일거" },
   { word: "음악을", syllables: ["음","악","을"], meaning: "音楽を",   moves: [
       { from:0, to:1, jamo:"ㅁ", afterFrom:"으", afterTo:"막" },
       { from:1, to:2, jamo:"ㄱ", afterFrom:"마", afterTo:"글" }
