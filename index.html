@@ -219,17 +219,20 @@
   }
   .syl.flying .ch.coral {
     opacity: 1;
-    text-shadow: 0 4px 14px rgba(233,79,55,0.45);
+    /* No text-shadow here — directional shadow leaks past the clip-path
+       boundary and reads as an unwanted horizontal line. */
   }
   /* Patchim-only clip on the flying container */
   .syl.flying[data-layout="v-has-jong"] .ch.coral { clip-path: polygon(0 60%, 100% 60%, 100% 100%, 0 100%); }
   .syl.flying[data-layout="h-has-jong"] .ch.coral { clip-path: polygon(0 64%, 100% 64%, 100% 100%, 0 100%); }
 
-  /* Sparkle (キラキラ) — scale-pulse + golden glow on the visible patchim */
+  /* Sparkle (キラキラ) — pure scale-pulse, no filter shadows.
+     Shadows extending past the clip-path were creating a flickering
+     horizontal edge during the sparkle. */
   @keyframes flyingSparkle {
-    0%, 100% { transform: scale(1);    filter: drop-shadow(0 0 0 rgba(255, 224, 130, 0)); }
-    35%      { transform: scale(1.18); filter: drop-shadow(0 0 12px rgba(255, 224, 130, 0.95)) drop-shadow(0 0 28px rgba(244, 184, 96, 0.7)); }
-    65%      { transform: scale(0.96); filter: drop-shadow(0 0 6px rgba(255, 224, 130, 0.4)); }
+    0%, 100% { transform: scale(1);    }
+    35%      { transform: scale(1.18); }
+    65%      { transform: scale(0.96); }
   }
   .syl.flying .ch.coral.pico {
     animation: flyingSparkle 0.55s ease-in-out 2;
