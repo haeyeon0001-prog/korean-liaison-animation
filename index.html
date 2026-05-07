@@ -238,24 +238,13 @@
   .syl.flying[data-layout="v-has-jong"] .ch.coral { clip-path: polygon(0 60%, 100% 60%, 100% 100%, 0 100%); }
   .syl.flying[data-layout="h-has-jong"] .ch.coral { clip-path: polygon(0 64%, 100% 64%, 100% 100%, 0 100%); }
 
-  /* Compound patchim (ㄺ ㄻ ㄼ ㄽ ㄾ ㄿ ㄳ ㄵ ㅄ etc.) — only the RIGHT half
-     (the second consonant) is the part that moves during liaison. Clip the
-     flying overlay to that half so only the moving jamo is visible. */
-  .syl.flying.compound-jong[data-layout="v-has-jong"] .ch.coral { clip-path: polygon(48% 60%, 100% 60%, 100% 100%, 48% 100%); }
-  .syl.flying.compound-jong[data-layout="h-has-jong"] .ch.coral { clip-path: polygon(48% 64%, 100% 64%, 100% 100%, 48% 100%); }
-  .syl.flying.compound-jong .ch.coral.pico { transform-origin: 74% 80%; }
-
-  /* While the compound source is sparkling, hide the ENTIRE patchim region
-     of the source's base layer. The flying coral overlay still shows ㄱ
-     (right half of patchim), so the user only sees the moving consonant.
-     The ㄹ (or other staying consonant) reappears naturally once the source
-     character is swapped to its post-move form (e.g. 읽 → 일). */
-  .syl.compound-sparkling[data-layout="v-has-jong"] .ch.base {
-    clip-path: polygon(0 0, 100% 0, 100% 56%, 0 56%);
-  }
-  .syl.compound-sparkling[data-layout="h-has-jong"] .ch.base {
-    clip-path: polygon(0 0, 100% 0, 100% 60%, 0 60%);
-  }
+  /* Compound patchim (ㄺ ㄻ ㄼ ㄽ ㄾ ㄿ ㄳ ㄵ ㅄ etc.) — only the RIGHT-side
+     consonant (the second one) is the part that moves during liaison.
+     Boundary pulled in tighter (54%) so the LEFT consonant's right edge
+     (e.g. ㄹ in ㄺ) is NOT included in the coral overlay. */
+  .syl.flying.compound-jong[data-layout="v-has-jong"] .ch.coral { clip-path: polygon(54% 60%, 100% 60%, 100% 100%, 54% 100%); }
+  .syl.flying.compound-jong[data-layout="h-has-jong"] .ch.coral { clip-path: polygon(54% 64%, 100% 64%, 100% 100%, 54% 100%); }
+  .syl.flying.compound-jong .ch.coral.pico { transform-origin: 76% 80%; }
 
   /* Sparkle (キラキラ) — pure scale-pulse, no filter shadows.
      Shadows extending past the clip-path were creating a flickering
@@ -724,14 +713,12 @@ async function animateMove(move) {
   const flyer = document.createElement("div");
   flyer.className = "syl flying";
   flyer.dataset.layout = layoutOf(fromChar);
-  // Mark compound-patchim sources so the clip-path narrows to the right half,
-  // and ALSO mark the source syllable as "sparkling" so its base-layer's
-  // left-half-of-patchim (e.g. ㄹ in ㄺ) is hidden while only ㄱ should show.
+  // Mark compound-patchim sources so the flying overlay's clip-path narrows
+  // to exclude the LEFT consonant (e.g. ㄹ in ㄺ stays as the source's
+  // patchim and is not part of the moving coral character).
   const fromDecomp = decompose(fromChar);
-  const isCompound = fromDecomp && COMPOUND_JONG.has(fromDecomp.jongI);
-  if (isCompound) {
+  if (fromDecomp && COMPOUND_JONG.has(fromDecomp.jongI)) {
     flyer.classList.add("compound-jong");
-    fromSyl.classList.add("compound-sparkling");
   }
   flyer.style.left = flyStartX + "px";
   flyer.style.top  = flyStartY + "px";
@@ -758,9 +745,6 @@ async function animateMove(move) {
   await wait(380);
 
   // 3) Swap source → no-patchim form at the same moment as the move starts.
-  //    Also clear .compound-sparkling so the clip-path on the base layer is
-  //    removed and the new patchim (e.g. ㄹ in 일) is visible naturally.
-  fromSyl.classList.remove("compound-sparkling");
   setSylChar(move.from, move.afterFrom);
 
   // 4) Arc the flying container. Its translation = (endPos - startPos)
