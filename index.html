@@ -238,6 +238,13 @@
   .syl.flying[data-layout="v-has-jong"] .ch.coral { clip-path: polygon(0 60%, 100% 60%, 100% 100%, 0 100%); }
   .syl.flying[data-layout="h-has-jong"] .ch.coral { clip-path: polygon(0 64%, 100% 64%, 100% 100%, 0 100%); }
 
+  /* Compound patchim (ㄺ ㄻ ㄼ ㄽ ㄾ ㄿ ㄳ ㄵ ㅄ etc.) — only the RIGHT half
+     (the second consonant) is the part that moves during liaison. Clip the
+     flying overlay to that half so only the moving jamo is visible. */
+  .syl.flying.compound-jong[data-layout="v-has-jong"] .ch.coral { clip-path: polygon(48% 60%, 100% 60%, 100% 100%, 48% 100%); }
+  .syl.flying.compound-jong[data-layout="h-has-jong"] .ch.coral { clip-path: polygon(48% 64%, 100% 64%, 100% 100%, 48% 100%); }
+  .syl.flying.compound-jong .ch.coral.pico { transform-origin: 74% 80%; }
+
   /* Sparkle (キラキラ) — pure scale-pulse, no filter shadows.
      Shadows extending past the clip-path were creating a flickering
      horizontal edge during the sparkle. */
@@ -476,6 +483,9 @@ const CHO_LIST  = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','
 const JUNG_LIST = ['ㅏ','ㅐ','ㅑ','ㅒ','ㅓ','ㅔ','ㅕ','ㅖ','ㅗ','ㅘ','ㅙ','ㅚ','ㅛ','ㅜ','ㅝ','ㅞ','ㅟ','ㅠ','ㅡ','ㅢ','ㅣ'];
 const JONG_LIST = ['','ㄱ','ㄲ','ㄳ','ㄴ','ㄵ','ㄶ','ㄷ','ㄹ','ㄺ','ㄻ','ㄼ','ㄽ','ㄾ','ㄿ','ㅀ','ㅁ','ㅂ','ㅄ','ㅅ','ㅆ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
 const HORIZ_VOWELS = new Set([8, 12, 13, 17, 18]); // ㅗ ㅛ ㅜ ㅠ ㅡ
+// Compound jongseong (겹받침) that split during liaison — second consonant moves.
+// Indices: ㄳ=3, ㄵ=5, ㄶ=6, ㄺ=9, ㄻ=10, ㄼ=11, ㄽ=12, ㄾ=13, ㄿ=14, ㅀ=15, ㅄ=18
+const COMPOUND_JONG = new Set([3, 5, 6, 9, 10, 11, 12, 13, 14, 15, 18]);
 
 function decompose(syl) {
   const code = syl.charCodeAt(0);
@@ -500,7 +510,12 @@ function decompose(syl) {
 function patchimPos(syl) {
   const d = decompose(syl);
   if (!d || !d.jong) return null;
-  // Patchim sits at the bottom-center of the composed block
+  // For compound patchims, only the RIGHT half (second consonant) moves,
+  // so anchor the flying overlay's start at the right portion of the patchim.
+  if (COMPOUND_JONG.has(d.jongI)) {
+    return d.horizontal ? { x: 72, y: 80 } : { x: 72, y: 80 };
+  }
+  // Simple patchim sits at the bottom-center of the composed block
   return d.horizontal ? { x: 50, y: 78 } : { x: 50, y: 76 };
 }
 function initialPos(syl) {
@@ -697,6 +712,11 @@ async function animateMove(move) {
   const flyer = document.createElement("div");
   flyer.className = "syl flying";
   flyer.dataset.layout = layoutOf(fromChar);
+  // Mark compound-patchim sources so the clip-path narrows to the right half
+  const fromDecomp = decompose(fromChar);
+  if (fromDecomp && COMPOUND_JONG.has(fromDecomp.jongI)) {
+    flyer.classList.add("compound-jong");
+  }
   flyer.style.left = flyStartX + "px";
   flyer.style.top  = flyStartY + "px";
   const flyerCh = document.createElement("span");
