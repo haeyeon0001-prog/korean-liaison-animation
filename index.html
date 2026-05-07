@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>連音化アニメーション — 한국어 발음 변화</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:  #B8E5E0;       /* 水色 — light seafoam */
+    --bg2: #6FB6B3;       /* deeper aqua-teal */
+    --bg3: #9DD9D2;       /* mid mint */
+    --paper: #FFFBF5;
+    --coral: #E94F37;
+    --gold: #F4B860;
+    --green: #5B8A72;
+    --hydrangea: #B19CD9; /* lighter hydrangea purple */
+    --soft-sun:  #FCE4A3; /* warm sunlight on water */
+    --ink: #1A1A1A;
+    --muted: #8A8A8A;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background:
+      radial-gradient(ellipse at 18% 8%,  rgba(255,255,255,0.55), transparent 35%),
+      radial-gradient(ellipse at 82% 12%, rgba(252,228,163,0.35), transparent 40%),
+      radial-gradient(ellipse at 50% 105%, rgba(255,255,255,0.4),  transparent 55%),
+      linear-gradient(155deg, var(--bg) 0%, var(--bg3) 45%, var(--bg2) 100%);
+    background-attachment: fixed;
+    font-family: "Noto Sans JP", "Noto Sans KR", system-ui, sans-serif;
+    color: var(--ink);
+    overflow: hidden;
+    position: relative;
+  }
+  /* Subtle highlight overlay — static */
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(circle at 30% 70%, rgba(255,255,255,0.18), transparent 25%),
+      radial-gradient(circle at 70% 30%, rgba(177,156,217,0.20), transparent 30%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .stage {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  .blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(40px);
+    opacity: 0.55;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .blob.coral { width: 460px; height: 460px; background: var(--hydrangea); top: -160px; left: -140px; opacity: 0.45; }
+  .blob.gold  { width: 320px; height: 320px; background: var(--soft-sun);  bottom: -110px; right: -100px; opacity: 0.55; }
+  .blob.green { width: 200px; height: 200px; background: #A8E0D6;          top: 30px; right: 60px; opacity: 0.5; }
+
+  /* ─── Sparkles & water droplets ─────────────────────────── */
+  .sparkles {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    overflow: hidden;
+  }
+  /* Round water-drop with highlight — static */
+  .drop {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%,
+      rgba(255,255,255,0.95),
+      rgba(255,255,255,0.55) 40%,
+      rgba(255,255,255,0.05) 75%,
+      transparent 100%);
+    box-shadow: 0 0 8px rgba(255,255,255,0.6),
+                inset 0 0 4px rgba(255,255,255,0.3);
+    opacity: 0.7;
+  }
+  /* Four-point sparkle (✦ shape via two crossed rectangles) — static */
+  .spark {
+    position: absolute;
+    width: 14px; height: 14px;
+    opacity: 0.7;
+  }
+  .spark::before, .spark::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(transparent 45%, #fff 50%, transparent 55%);
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.85);
+  }
+  .spark::after { transform: rotate(90deg); }
+
+  header {
+    position: absolute;
+    top: 28px; left: 0; right: 0;
+    text-align: center;
+    z-index: 5;
+  }
+  header .kicker {
+    font-family: "Noto Sans KR";
+    font-weight: 900;
+    color: #2C7A7B;       /* deep teal — readable on aqua bg */
+    letter-spacing: 0.4em;
+    font-size: 14px;
+  }
+  header h1 {
+    font-family: "Noto Sans KR";
+    font-weight: 900;
+    font-size: 32px;
+    margin-top: 6px;
+    color: #1A4747;       /* near-ink with a hint of teal */
+    text-shadow: 0 2px 6px rgba(255,255,255,0.5);
+  }
+
+  /* Animation area */
+  .scene {
+    position: relative;
+    width: min(92vw, 1100px);
+    height: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+  }
+
+  .word {
+    display: flex;
+    gap: 36px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Each syllable card: a 180×180 square. The character is rendered as a
+     normal composed Hangul block — the font handles internal balance, so
+     책 and 이 occupy identical space. */
+  .syl {
+    position: relative;
+    width: 180px;
+    height: 180px;
+    background: var(--paper);
+    border-radius: 22px;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink);
+    font-family: "Noto Sans KR";
+    font-weight: 900;
+    line-height: 1;
+    transition: transform 0.6s ease;
+  }
+  .syl .ch {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 130px;
+    line-height: 1;
+    transition: opacity 0.25s ease;
+  }
+  .syl .ch.base { color: var(--ink); z-index: 1; }
+  /* The coral overlay is the SAME composed character drawn in coral, then
+     clipped via clip-path to expose only the initial portion. Result: the
+     initial in coral, the rest in the underlying black character. */
+  .syl .ch.coral {
+    color: var(--coral);
+    z-index: 2;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .syl .ch.coral.show { opacity: 1; }
+
+  /* clip-path masks — boundaries are set wider than the natural initial's
+     rightmost/bottom extent so the coral layer fully covers the initial
+     glyph and the base layer fully hides it (no black bleed-through). */
+  .syl[data-layout="v-no-jong"]  .ch.coral { clip-path: polygon(0 0, 62% 0, 62% 100%, 0 100%); }
+  .syl[data-layout="v-has-jong"] .ch.coral { clip-path: polygon(0 0, 58% 0, 58% 58%, 0 58%); }
+  .syl[data-layout="h-no-jong"]  .ch.coral { clip-path: polygon(0 0, 100% 0, 100% 56%, 0 56%); }
+  .syl[data-layout="h-has-jong"] .ch.coral { clip-path: polygon(0 0, 100% 0, 100% 42%, 0 42%); }
+
+  .syl.coral-active[data-layout="v-no-jong"]  .ch.base { clip-path: polygon(62% 0, 100% 0, 100% 100%, 62% 100%); }
+  .syl.coral-active[data-layout="v-has-jong"] .ch.base { clip-path: polygon(58% 0, 100% 0, 100% 100%, 0 100%, 0 58%, 58% 58%); }
+  .syl.coral-active[data-layout="h-no-jong"]  .ch.base { clip-path: polygon(0 56%, 100% 56%, 100% 100%, 0 100%); }
+  .syl.coral-active[data-layout="h-has-jong"] .ch.base { clip-path: polygon(0 42%, 100% 42%, 100% 100%, 0 100%); }
+
+  /* Narrower clip for vowels (ㅓ ㅕ ㅔ ㅖ) whose left-pointing stroke would
+     otherwise be partially recolored coral. Boundary pulled in to ~50%
+     so the vowel's left horizontal stroke stays black. */
+  .syl[data-layout="v-no-jong"][data-vowel-left="true"]  .ch.coral { clip-path: polygon(0 0, 50% 0, 50% 100%, 0 100%); }
+  .syl.coral-active[data-layout="v-no-jong"][data-vowel-left="true"]  .ch.base { clip-path: polygon(50% 0, 100% 0, 100% 100%, 50% 100%); }
+  .syl[data-layout="v-has-jong"][data-vowel-left="true"] .ch.coral { clip-path: polygon(0 0, 50% 0, 50% 58%, 0 58%); }
+  .syl.coral-active[data-layout="v-has-jong"][data-vowel-left="true"] .ch.base { clip-path: polygon(50% 0, 100% 0, 100% 100%, 0 100%, 0 58%, 50% 58%); }
+
+  /* Flying overlay = a syllable-shaped container (180×180) that hosts the
+     SAME composed character as the source, drawn in coral and clipped to
+     show only the patchim region. This guarantees the moving glyph has
+     identical proportions to the natural patchim in the source character. */
+  .syl.flying {
+    position: absolute;
+    background: transparent !important;
+    box-shadow: none !important;
+    pointer-events: none;
+    z-index: 8;
+    transition: none;
+    will-change: transform, left, top;
+  }
+  .syl.flying .ch.coral {
+    opacity: 1;
+    text-shadow: 0 4px 14px rgba(233,79,55,0.45);
+  }
+  /* Patchim-only clip on the flying container */
+  .syl.flying[data-layout="v-has-jong"] .ch.coral { clip-path: polygon(0 60%, 100% 60%, 100% 100%, 0 100%); }
+  .syl.flying[data-layout="h-has-jong"] .ch.coral { clip-path: polygon(0 64%, 100% 64%, 100% 100%, 0 100%); }
+
+  /* Sparkle (キラキラ) — scale-pulse + golden glow on the visible patchim */
+  @keyframes flyingSparkle {
+    0%, 100% { transform: scale(1);    filter: drop-shadow(0 0 0 rgba(255, 224, 130, 0)); }
+    35%      { transform: scale(1.18); filter: drop-shadow(0 0 12px rgba(255, 224, 130, 0.95)) drop-shadow(0 0 28px rgba(244, 184, 96, 0.7)); }
+    65%      { transform: scale(0.96); filter: drop-shadow(0 0 6px rgba(255, 224, 130, 0.4)); }
+  }
+  .syl.flying .ch.coral.pico {
+    animation: flyingSparkle 0.55s ease-in-out 2;
+    transform-origin: 50% 80%;   /* anchor scale around the patchim's center */
+  }
+
+  /* Dashed guide arrow drawn from source patchim → destination initial */
+  .move-arrow {
+    position: absolute;
+    top: 0; left: 0;
+    pointer-events: none;
+    overflow: visible;
+    z-index: 7;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+  }
+  .move-arrow.show { opacity: 1; }
+  .move-arrow path {
+    fill: none;
+    stroke: var(--coral);
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-dasharray: 9 7;
+    filter: drop-shadow(0 4px 10px rgba(233,79,55,0.4));
+  }
+  .move-arrow polygon {
+    fill: var(--coral);
+    filter: drop-shadow(0 4px 10px rgba(233,79,55,0.4));
+  }
+
+  /* Particle trail */
+  .trail {
+    position: absolute;
+    width: 12px; height: 12px;
+    background: var(--coral);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 8;
+    opacity: 0.7;
+    box-shadow: 0 0 14px var(--coral);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+
+  .meaning {
+    position: absolute;
+    /* Below the cards: viewport center + half-card-height + gap */
+    top: calc(50% + 110px);
+    left: 50%;
+    transform: translate(-50%, 0);
+    color: #2C7A7B;
+    font-size: 36px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    z-index: 4;
+    min-height: 50px;
+    text-shadow: 0 1px 4px rgba(255,255,255,0.4);
+  }
+
+  .narration {
+    position: absolute;
+    top: 140px;
+    left: 50%;
+    transform: translate(-50%, 0);
+    color: #fff;
+    background: rgba(0,0,0,0.32);
+    padding: 10px 22px;
+    border-radius: 12px;
+    font-size: 16px;
+    letter-spacing: 0.04em;
+    backdrop-filter: blur(6px);
+    z-index: 7;
+    text-align: center;
+    max-width: 90vw;
+  }
+  .narration:empty {
+    background: transparent;
+    padding: 0;
+    backdrop-filter: none;
+  }
+
+  .controls {
+    position: absolute;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 14px;
+    z-index: 10;
+    align-items: center;
+  }
+  button {
+    font-family: inherit;
+    font-size: 16px;
+    padding: 12px 22px;
+    border: none;
+    border-radius: 999px;
+    background: var(--paper);
+    color: var(--bg);
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+    transition: transform 0.15s, background 0.2s;
+  }
+  button:hover { transform: translateY(-2px); background: var(--gold); }
+  button:active { transform: translateY(0); }
+  button.primary { background: var(--coral); color: #fff; }
+  button.primary:hover { background: #c43a25; }
+  .ex-pill {
+    background: rgba(255,255,255,0.55);
+    backdrop-filter: blur(8px);
+    color: #1A4747;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  }
+  .speed {
+    background: rgba(255,255,255,0.55);
+    backdrop-filter: blur(8px);
+    color: #1A4747;
+    border: none;
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  }
+</style>
+</head>
+<body>
+
+<div class="sparkles" id="sparkles"></div>
+
+<div class="stage">
+  <div class="blob coral"></div>
+  <div class="blob gold"></div>
+  <div class="blob green"></div>
+
+  <header>
+    <div class="kicker">RULE 1</div>
+    <h1>連音化 — パッチムが次の音節へ流れる</h1>
+  </header>
+
+  <div class="scene" id="scene">
+    <div class="word" id="word"></div>
+  </div>
+
+  <div class="meaning" id="meaning"></div>
+  <div class="narration" id="narration"></div>
+
+  <div class="controls">
+    <button id="restartBtn">↺</button>
+    <button class="primary" id="playBtn">▶</button>
+    <button id="nextBtn">⏭</button>
+    <button class="speed" id="speedBtn">1.0×</button>
+    <span class="ex-pill" id="exLabel">1 / 4</span>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   Hangul composition / decomposition
+   ========================================================= */
+const CHO_LIST  = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+const JUNG_LIST = ['ㅏ','ㅐ','ㅑ','ㅒ','ㅓ','ㅔ','ㅕ','ㅖ','ㅗ','ㅘ','ㅙ','ㅚ','ㅛ','ㅜ','ㅝ','ㅞ','ㅟ','ㅠ','ㅡ','ㅢ','ㅣ'];
+const JONG_LIST = ['','ㄱ','ㄲ','ㄳ','ㄴ','ㄵ','ㄶ','ㄷ','ㄹ','ㄺ','ㄻ','ㄼ','ㄽ','ㄾ','ㄿ','ㅀ','ㅁ','ㅂ','ㅄ','ㅅ','ㅆ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+const HORIZ_VOWELS = new Set([8, 12, 13, 17, 18]); // ㅗ ㅛ ㅜ ㅠ ㅡ
+
+function decompose(syl) {
+  const code = syl.charCodeAt(0);
+  if (code < 0xAC00 || code > 0xD7A3) return null;
+  const idx = code - 0xAC00;
+  return {
+    choI:  Math.floor(idx / 588),
+    jungI: Math.floor(idx / 28) % 21,
+    jongI: idx % 28,
+    cho:   CHO_LIST[Math.floor(idx / 588)],
+    jung:  JUNG_LIST[Math.floor(idx / 28) % 21],
+    jong:  JONG_LIST[idx % 28],
+    horizontal: HORIZ_VOWELS.has(Math.floor(idx / 28) % 21)
+  };
+}
+
+/* =========================================================
+   Position helpers — where the patchim / initial naturally
+   sits inside a composed-character cell, in % of card size.
+   These are visual approximations matched to Noto Sans KR.
+   ========================================================= */
+function patchimPos(syl) {
+  const d = decompose(syl);
+  if (!d || !d.jong) return null;
+  // Patchim sits at the bottom-center of the composed block
+  return d.horizontal ? { x: 50, y: 78 } : { x: 50, y: 76 };
+}
+function initialPos(syl) {
+  const d = decompose(syl);
+  if (!d) return { x: 50, y: 50 };
+  if (d.horizontal) {
+    // Horizontal vowel: initial on top
+    return d.jong ? { x: 50, y: 22 } : { x: 50, y: 28 };
+  }
+  // Vertical vowel: initial sits to the left
+  return d.jong ? { x: 28, y: 25 } : { x: 28, y: 36 };
+}
+
+/* =========================================================
+   Examples
+   ========================================================= */
+const EXAMPLES = [
+  { word: "책이",  syllables: ["책","이"],     meaning: "本が",     moves: [{ from:0, to:1, jamo:"ㄱ", afterFrom:"채", afterTo:"기" }], result: "채기" },
+  { word: "음악",  syllables: ["음","악"],     meaning: "音楽",     moves: [{ from:0, to:1, jamo:"ㅁ", afterFrom:"으", afterTo:"막" }], result: "으막" },
+  { word: "한국어", syllables: ["한","국","어"], meaning: "韓国語",   moves: [{ from:1, to:2, jamo:"ㄱ", afterFrom:"구", afterTo:"거" }], result: "한구거" },
+  { word: "음악을", syllables: ["음","악","을"], meaning: "音楽を",   moves: [
+      { from:0, to:1, jamo:"ㅁ", afterFrom:"으", afterTo:"막" },
+      { from:1, to:2, jamo:"ㄱ", afterFrom:"마", afterTo:"글" }
+  ], result: "으마글" }
+];
+EXAMPLES.forEach(ex => { ex._originalSyllables = ex.syllables.slice(); });
+
+let curIdx = 0;
+let speed = 1.0;
+let isPlaying = false;
+let currentTimeouts = [];
+
+const wordEl      = document.getElementById("word");
+const meaningEl   = document.getElementById("meaning");
+const narrationEl = document.getElementById("narration");
+const exLabel     = document.getElementById("exLabel");
+const sceneEl     = document.getElementById("scene");
+
+function clearAllTimers() {
+  currentTimeouts.forEach(t => clearTimeout(t));
+  currentTimeouts = [];
+}
+function wait(ms) {
+  return new Promise(res => {
+    const t = setTimeout(res, ms / speed);
+    currentTimeouts.push(t);
+  });
+}
+
+/* =========================================================
+   Rendering
+   ========================================================= */
+function layoutOf(syl) {
+  const d = decompose(syl);
+  if (!d) return "v-no-jong";
+  if (d.horizontal) return d.jong ? "h-has-jong" : "h-no-jong";
+  return d.jong ? "v-has-jong" : "v-no-jong";
+}
+
+// Vowels whose left-pointing stroke extends into the initial's region.
+// For these we narrow the coral clip so the vowel stays black.
+// Indices in JUNG_LIST: 4=ㅓ, 5=ㅔ, 6=ㅕ, 7=ㅖ
+const VOWEL_LEFT_EXTEND = new Set([4, 5, 6, 7]);
+function vowelLeftExtend(syl) {
+  const d = decompose(syl);
+  return d ? VOWEL_LEFT_EXTEND.has(d.jungI) : false;
+}
+
+function renderSyl(syl, idx) {
+  const wrap = document.createElement("div");
+  wrap.className = "syl";
+  wrap.dataset.idx = idx;
+  wrap.dataset.layout = layoutOf(syl);
+  wrap.dataset.cur = syl;
+  if (vowelLeftExtend(syl)) wrap.dataset.vowelLeft = "true";
+  const base = document.createElement("span");
+  base.className = "ch base";
+  base.textContent = syl;
+  const coral = document.createElement("span");
+  coral.className = "ch coral";
+  coral.textContent = syl;
+  wrap.appendChild(base);
+  wrap.appendChild(coral);
+  return wrap;
+}
+
+function setSylChar(idx, newChar) {
+  const sylEl = wordEl.children[idx];
+  if (!sylEl) return;
+  sylEl.querySelector(".ch.base").textContent  = newChar;
+  sylEl.querySelector(".ch.coral").textContent = newChar;
+  sylEl.dataset.layout = layoutOf(newChar);
+  sylEl.dataset.cur = newChar;
+  if (vowelLeftExtend(newChar)) sylEl.dataset.vowelLeft = "true";
+  else delete sylEl.dataset.vowelLeft;
+}
+function showCoralInitial(idx, on) {
+  const sylEl = wordEl.children[idx];
+  if (!sylEl) return;
+  sylEl.querySelector(".ch.coral").classList.toggle("show", !!on);
+  // Toggle the .coral-active class so the BASE character's initial region
+  // gets inversely clipped (hides the black initial behind the coral one)
+  sylEl.classList.toggle("coral-active", !!on);
+}
+
+function renderExample(idx) {
+  clearAllTimers();
+  const ex = EXAMPLES[idx];
+  ex.syllables = ex._originalSyllables.slice();
+  wordEl.innerHTML = "";
+  sceneEl.querySelectorAll(".syl.flying, .move-arrow, .trail").forEach(n => n.remove());
+  coralDestinations.clear();
+  meaningEl.textContent = ex.meaning;
+  narrationEl.textContent = "";
+  exLabel.textContent = `${idx + 1} / ${EXAMPLES.length}`;
+  ex.syllables.forEach((s, i) => wordEl.appendChild(renderSyl(s, i)));
+}
+
+/* =========================================================
+   Geometry helpers — coordinates relative to the scene
+   ========================================================= */
+function sceneCoord(clientX, clientY) {
+  const r = sceneEl.getBoundingClientRect();
+  return { x: clientX - r.left, y: clientY - r.top };
+}
+function sylAnchor(sylEl, posPercent) {
+  const r = sylEl.getBoundingClientRect();
+  return sceneCoord(
+    r.left + (posPercent.x / 100) * r.width,
+    r.top  + (posPercent.y / 100) * r.height
+  );
+}
+
+function drawMoveArrow(start, end) {
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("class", "move-arrow");
+  const sceneRect = sceneEl.getBoundingClientRect();
+  svg.setAttribute("width",  sceneRect.width);
+  svg.setAttribute("height", sceneRect.height);
+
+  const cx = (start.x + end.x) / 2;
+  const liftY = Math.min(start.y, end.y) - 70;
+  const sx = start.x, sy = start.y - 4;
+  const ex = end.x,   ey = end.y - 4;
+  const angle = Math.atan2(ey - liftY, ex - cx);
+  const headBackX = ex - Math.cos(angle) * 14;
+  const headBackY = ey - Math.sin(angle) * 14;
+
+  const path = document.createElementNS(SVG_NS, "path");
+  path.setAttribute("d", `M ${sx} ${sy} Q ${cx} ${liftY} ${headBackX} ${headBackY}`);
+  svg.appendChild(path);
+
+  const headLen = 16, headW = 12;
+  const baseX = ex - Math.cos(angle) * headLen;
+  const baseY = ey - Math.sin(angle) * headLen;
+  const leftX  = baseX + Math.cos(angle + Math.PI / 2) * (headW / 2);
+  const leftY  = baseY + Math.sin(angle + Math.PI / 2) * (headW / 2);
+  const rightX = baseX + Math.cos(angle - Math.PI / 2) * (headW / 2);
+  const rightY = baseY + Math.sin(angle - Math.PI / 2) * (headW / 2);
+  const head = document.createElementNS(SVG_NS, "polygon");
+  head.setAttribute("points", `${ex},${ey} ${leftX},${leftY} ${rightX},${rightY}`);
+  svg.appendChild(head);
+
+  sceneEl.appendChild(svg);
+  requestAnimationFrame(() => svg.classList.add("show"));
+  return svg;
+}
+
+/* The destinations that currently display a coral initial.
+   Used to restore them after replay/restart. */
+const coralDestinations = new Set();
+
+/* =========================================================
+   Animate one move
+   ========================================================= */
+async function animateMove(move) {
+  const ex = EXAMPLES[curIdx];
+  const fromSyl = wordEl.children[move.from];
+  const toSyl   = wordEl.children[move.to];
+  const fromChar = ex.syllables[move.from];
+  const toChar   = ex.syllables[move.to];
+
+  // 1) Build the flying overlay — a transparent syllable-shaped container
+  //    holding the SAME composed source character in coral, clipped to the
+  //    patchim region. Identical proportions to the natural patchim.
+  const fromRect = fromSyl.getBoundingClientRect();
+  const sceneRect = sceneEl.getBoundingClientRect();
+  const flyStartX = fromRect.left - sceneRect.left;
+  const flyStartY = fromRect.top  - sceneRect.top;
+
+  const flyer = document.createElement("div");
+  flyer.className = "syl flying";
+  flyer.dataset.layout = layoutOf(fromChar);
+  flyer.style.left = flyStartX + "px";
+  flyer.style.top  = flyStartY + "px";
+  const flyerCh = document.createElement("span");
+  flyerCh.className = "ch coral pico";
+  flyerCh.textContent = fromChar;
+  flyer.appendChild(flyerCh);
+  sceneEl.appendChild(flyer);
+
+  const startPos = sylAnchor(fromSyl, patchimPos(fromChar));
+
+  narrationEl.textContent = `① 「${fromChar}」のパッチム『${move.jamo}』に注目`;
+  await wait(1100);
+  flyerCh.classList.remove("pico");
+
+  narrationEl.textContent = `② 『${move.jamo}』が右隣『${toChar}』へ移動`;
+
+  // 2) Landing position: the destination's initial position, computed in
+  //    scene coords. The flying container needs to translate so that its
+  //    visible patchim region overlays the destination's initial position.
+  const endPos = sylAnchor(toSyl, initialPos(move.afterTo));
+
+  const arrow = drawMoveArrow(startPos, endPos);
+  await wait(380);
+
+  // 3) Swap source → no-patchim form at the same moment as the move starts
+  setSylChar(move.from, move.afterFrom);
+
+  // 4) Arc the flying container. Its translation = (endPos - startPos)
+  //    where the "start" and "end" refer to the patchim's visible center.
+  const dx = endPos.x - startPos.x;
+  const dy = endPos.y - startPos.y;
+  const frames = 30;
+  const dur = 1000;
+  for (let f = 0; f <= frames; f++) {
+    const p = f / frames;
+    const ep = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+    const cx = dx * ep;
+    const arc = -90 * Math.sin(Math.PI * ep);
+    const cy = dy * ep + arc;
+    flyer.style.transform = `translate(${cx}px, ${cy}px)`;
+
+    if (f % 3 === 0 && f < frames - 4) {
+      const t = document.createElement("div");
+      t.className = "trail";
+      const trailX = startPos.x + cx;
+      const trailY = startPos.y + cy;
+      t.style.left = (trailX - 6) + "px";
+      t.style.top  = (trailY - 6) + "px";
+      sceneEl.appendChild(t);
+      setTimeout(() => { t.style.opacity = "0"; t.style.transform = "scale(0.2)"; }, 30);
+      setTimeout(() => t.remove(), 800);
+    }
+    await wait(dur / frames);
+  }
+
+  // 5) Land: swap destination character and reveal its persistent coral
+  //    overlay (also a clipped composed character) which sits at exactly
+  //    the spot the flyer's patchim region just landed on.
+  setSylChar(move.to, move.afterTo);
+  showCoralInitial(move.to, true);
+  coralDestinations.add(move.to);
+
+  flyer.style.transition = "opacity 0.25s ease";
+  flyer.style.opacity = "0";
+  setTimeout(() => flyer.remove(), 300);
+
+  if (arrow) {
+    arrow.classList.remove("show");
+    setTimeout(() => arrow.remove(), 400);
+  }
+
+  narrationEl.textContent = `③ 『${move.jamo}』が新しい初声になり → 『${move.afterTo}』完成`;
+  await wait(900);
+
+  // Update internal record so further moves reference the latest characters
+  ex.syllables[move.from] = move.afterFrom;
+  ex.syllables[move.to]   = move.afterTo;
+}
+
+/* =========================================================
+   Playback control
+   ========================================================= */
+async function play() {
+  if (isPlaying) return;
+  isPlaying = true;
+  renderExample(curIdx);
+  coralDestinations.clear();
+  await wait(400);
+  const ex = EXAMPLES[curIdx];
+  for (let i = 0; i < ex.moves.length; i++) {
+    await animateMove(ex.moves[i]);
+    if (i < ex.moves.length - 1) {
+      narrationEl.textContent = `▶ もう一つ動きます…`;
+      await wait(600);
+    }
+  }
+  narrationEl.textContent = `🎉 完成！「${ex.word}」 → [${ex.result}]`;
+  isPlaying = false;
+}
+
+function next() {
+  curIdx = (curIdx + 1) % EXAMPLES.length;
+  coralDestinations.clear();
+  renderExample(curIdx);
+}
+
+function restart() {
+  clearAllTimers();
+  isPlaying = false;
+  coralDestinations.clear();
+  renderExample(curIdx);
+}
+
+document.getElementById("playBtn").addEventListener("click", play);
+document.getElementById("nextBtn").addEventListener("click", next);
+document.getElementById("restartBtn").addEventListener("click", restart);
+document.getElementById("speedBtn").addEventListener("click", (e) => {
+  const speeds = [1.0, 1.5, 0.7];
+  const idx = speeds.indexOf(speed);
+  speed = speeds[(idx + 1) % speeds.length];
+  e.target.textContent = `${speed.toFixed(1)}×`;
+});
+document.addEventListener("keydown", (e) => {
+  if (e.code === "Space")      { e.preventDefault(); play(); }
+  if (e.code === "ArrowRight") next();
+  if (e.code === "ArrowLeft" || e.key === "r" || e.key === "R") restart();
+});
+
+renderExample(0);
+
+/* =========================================================
+   Scatter sparkles & water droplets across the background
+   ========================================================= */
+(function spawnSparkles() {
+  const layer = document.getElementById("sparkles");
+  if (!layer) return;
+  const rand = (a, b) => a + Math.random() * (b - a);
+  // Water drops — round dewdrops with highlights
+  for (let i = 0; i < 22; i++) {
+    const d = document.createElement("div");
+    d.className = "drop";
+    const size = rand(5, 13);
+    d.style.width  = size + "px";
+    d.style.height = size + "px";
+    d.style.left   = rand(0, 100) + "vw";
+    d.style.top    = rand(0, 100) + "vh";
+    layer.appendChild(d);
+  }
+  // Four-point sparkle stars
+  for (let i = 0; i < 14; i++) {
+    const s = document.createElement("div");
+    s.className = "spark";
+    const size = rand(8, 18);
+    s.style.width  = size + "px";
+    s.style.height = size + "px";
+    s.style.left   = rand(0, 100) + "vw";
+    s.style.top    = rand(0, 100) + "vh";
+    layer.appendChild(s);
+  }
+})();
+</script>
+</body>
+</html>
